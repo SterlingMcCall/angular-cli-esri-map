@@ -1,6 +1,39 @@
-/* import the required JSAPI css */
-@import url('https://js.arcgis.com/4.12/esri/css/main.css');
+:host {
+  position: relative;
+  display: block;
+}
 
-.esri-view {
-  height: 500px;
+.map-wrapper {
+  display: block;
+  height: calc(100vh - 60px - 53px); // page height minus top bar and map toolbar
+  width: 100%;
+}
+
+#esri-map {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+
+  ::ng-deep {
+    .esri-view .esri-view-surface--inset-outline:focus::after {
+      outline: none !important;
+    }
+
+    //.esri-view .esri-view-surface--inset-outline:focus::after {
+    //  content: "";
+    //  box-sizing: border-box;
+    //  position: absolute;
+    //  z-index: 999;
+    //  top: 0;
+    //  left: 0;
+    //  height: 100%;
+    //  width: 100%;
+    //  outline: auto 2px Highlight;
+    //  outline: auto 5px -webkit-focus-ring-color;
+    //  outline-offset: -3px;
+    //  pointer-events: none;
+    //  overflow: hidden
+    //}
+  }
 }

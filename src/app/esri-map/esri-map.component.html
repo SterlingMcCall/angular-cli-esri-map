@@ -1,2 +1,8 @@
-<!-- Here's the DIV that we inject the map into -->
-<div #mapViewNode></div>
+<ng-container>
+  <div class="map-wrapper">
+
+    <div id="esri-map"></div>
+
+  </div>
+  <ng-content select="[footer]"></ng-content>
+</ng-container>

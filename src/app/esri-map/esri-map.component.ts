@@ -24,107 +24,102 @@ import {
 import { loadModules } from "esri-loader";
 import esri = __esri; // Esri TypeScript Types
 
+import { counts, countsSmall } from './shape-id-counts.json';
+
+
+
+import Map from "@arcgis/core/Map";
+import config from "@arcgis/core/config";
+import MapView from '@arcgis/core/views/MapView';
+import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer';
+import Graphic from '@arcgis/core/Graphic';
+import Point from '@arcgis/core/geometry/Point';
+import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
+import * as webMercatorUtils from '@arcgis/core/geometry/support/webMercatorUtils';
+import * as watchUtils from '@arcgis/core/core/watchUtils';
+import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
+import FieldInfoFormat from '@arcgis/core/popup/support/FieldInfoFormat';
+import FieldInfo from '@arcgis/core/popup/FieldInfo';
+import FieldsContent from '@arcgis/core/popup/content/FieldsContent';
+import * as esriColor from '@arcgis/core/smartMapping/renderers/color';
+
 @Component({
   selector: "app-esri-map",
   templateUrl: "./esri-map.component.html",
   styleUrls: ["./esri-map.component.scss"]
 })
-export class EsriMapComponent implements OnInit, OnDestroy {
-  @Output() mapLoadedEvent = new EventEmitter<boolean>();
+export class EsriMapComponent implements OnInit {
 
-  // The <div> where we will place the map
-  @ViewChild("mapViewNode", { static: true }) private mapViewEl: ElementRef;
-
-  /**
-   * _zoom sets map zoom
-   * _center sets map center
-   * _basemap sets type of map
-   * _loaded provides map loaded status
-   */
-  private _zoom = 10;
-  private _center: Array<number> = [0.1278, 51.5074];
-  private _basemap = "streets";
-  private _loaded = false;
-  private _view: esri.MapView = null;
-
-  get mapLoaded(): boolean {
-    return this._loaded;
-  }
-
-  @Input()
-  set zoom(zoom: number) {
-    this._zoom = zoom;
-  }
-
-  get zoom(): number {
-    return this._zoom;
-  }
-
-  @Input()
-  set center(center: Array<number>) {
-    this._center = center;
-  }
-
-  get center(): Array<number> {
-    return this._center;
-  }
-
-  @Input()
-  set basemap(basemap: string) {
-    this._basemap = basemap;
-  }
-
-  get basemap(): string {
-    return this._basemap;
-  }
-
-  constructor() {}
-
-  async initializeMap() {
-    try {
-      // Load the modules for the ArcGIS API for JavaScript
-      const [EsriMap, EsriMapView] = await loadModules([
-        "esri/Map",
-        "esri/views/MapView"
-      ]);
-
-      // Configure the Map
-      const mapProperties: esri.MapProperties = {
-        basemap: this._basemap
-      };
-
-      const map: esri.Map = new EsriMap(mapProperties);
-
-      // Initialize the MapView
-      const mapViewProperties: esri.MapViewProperties = {
-        container: this.mapViewEl.nativeElement,
-        center: this._center,
-        zoom: this._zoom,
-        map: map
-      };
-
-      this._view = new EsriMapView(mapViewProperties);
-      await this._view.when();
-      return this._view;
-    } catch (error) {
-      console.log("EsriLoader: ", error);
-    }
-  }
+  esriMap: esri.Map;
 
   ngOnInit() {
-    // Initialize MapView and return an instance of MapView
-    this.initializeMap().then(mapView => {
-      // The map has been initialized
-      console.log("mapView ready: ", this._view.ready);
-      this._loaded = this._view.ready;
-      this.mapLoadedEvent.emit(true);
-    });
-  }
 
-  ngOnDestroy() {
-    if (this._view) {
-      // destroy the map view
-      this._view.container = null;
-    }
+    config.apiKey = "<<REDACTED>>";
+
+    this.esriMap = new Map({
+      basemap: "dark-gray-vector"
+    });
+
+    const view = new MapView({
+      map: this.esriMap,
+      center: [-7, 53],
+      zoom: 10,
+      container: "esri-map"
+    });
+
+    let choroplethLayer = new FeatureLayer({
+      url: 'https://services3.arcgis.com/L1ZxtnKjdtyq5SLi/arcgis/rest/services/ireland_level_2/FeatureServer',
+      popupTemplate: {
+        title: "Block Group {shapeName}",
+        content: [
+          new FieldsContent({
+            fieldInfos: [
+              new FieldInfo({
+                fieldName: "shapeName",
+                label: "Name"
+              }),
+              new FieldInfo({
+                fieldName: "Shape__Area",
+                label: "Area",
+                format: new FieldInfoFormat({
+                  digitSeparator: true,
+                  places: 0
+                })
+              })
+            ]
+          })
+        ]
+      }
+    });
+
+    const generateValueExpression = (obj: { [key: string]: number }): string => {
+      return `
+      var dict = Dictionary('${JSON.stringify(obj)}');
+      if (HasKey(dict, $feature.shapeID)) {
+          return dict[$feature.shapeID];
+      } else {
+          return 0;
+      }
+      `;
+    };
+
+    esriColor.createClassBreaksRenderer({
+      layer: choroplethLayer,
+      valueExpression: generateValueExpression(countsSmall),
+      view: view,
+      classificationMethod: 'equal-interval',
+      numClasses: 6,
+      legendOptions: {
+        title: "Land Area"
+      }
+
+    }).then(({ renderer }) => {
+      choroplethLayer.renderer = renderer;
+      console.log(renderer);
+      renderer.visualVariables;
+      this.esriMap?.add(choroplethLayer);
+    });
+    this.esriMap?.add(choroplethLayer);
+
   }
 }
